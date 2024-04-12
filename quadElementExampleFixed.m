@@ -64,6 +64,11 @@ G = gradient(psi,Fs(:));
 Gfun = matlabFunction(G);
 % CAREFUL with order of the parameters to Gfun !!!!
 myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
+
+% QUESTION 1
+q1 = hessian(psi, Fs(:));
+q1Func = matlabFunction(q1);
+myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
 % C = hessian(psi,F(:)); % we only need this for backward Euler.  Easy to add!
 
 % do some time stepping
@@ -78,19 +83,40 @@ for i=1:N
 end
 Minv = diag(1./mdiag);
 
-dt = 0.004;
+dt = 0.1;
+
+%QUESTION 2 IN HERE
+stiffness = zeros(numel(P),numel(P));
+areas = zeros(size(B, 1)/4, 1); % Initialize areas vector
+
 for t = 1:500
     F = B*P(:); % compute deformation gradients for current state
     forces = zeros( size(P) );
     for j=1:size(B,1)/4 % go through all the quadrature points of all elements 
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
         forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
+        stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
     end
+    disp(size(Pdot(:)));
+    M = inv(Minv);
+    freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
+    Mfree = M(freeIndices, freeIndices);
+    stiffnessFree = stiffness(freeIndices, freeIndices);
+    forcesFree = forces(freeIndices);
+    a = Mfree - dt^2 * stiffnessFree;
+    b = dt * forcesFree' + dt^2 * stiffnessFree * Pdot(freeIndices)';
+    PdotFree = mldivide(a,b);
+    freeIndices = freeIndices(1:2:end);
+    Pdot(:, freeIndices) = reshape(PdotFree, size(Pdot, 1), []);
+    Pdot(gridN:gridN:gridN*gridN) = 0;
+    
     % add gravity
     forces(2,:) = forces(2,:) - 9.8 * ones(1,size(P,2));
+
     % FE integration
     Pdot(:) = Pdot(:) + dt * Minv * forces(:);
-    P(:) = P(:) + dt * Pdot(:);
+    P(:) = P(:) + dt * Pdot(:); 
+    
     % reset pinned particles to P0
     P(:,gridN:gridN:gridN*gridN) = P0(:,gridN:gridN:gridN*gridN);
     %P(:,[gridN,gridN*gridN]) = P0(:,[gridN,gridN*gridN]);
@@ -131,6 +157,64 @@ function [mu, lambda] = toLame(nu, E)
     % TOLAME Converts Poisson ratio and nu and Young's modulus E to Lamé parameters.
     mu = E / 2 / (1 + nu);
     lambda = E * nu / (1 + nu) / (1 - 2 * nu);
+end
+
+
+
+% QUESTION 1:
+
+% gradPsi = sym(zeros(size(Fs)));
+% for i = 1:numel(F)
+%     gradPsi(i) = diff(psi, F(i));
+% end
+
+% % Step 3: Compute the second derivatives (Hessian)
+% Hessian = sym(zeros(numel(F)));
+% for i = 1:numel(F)
+%     for j = 1:numel(F)
+%         Hessian(i,j) = diff(gradPsi(i), F(j));
+%     end
+% end
+% % Step 4: Create a MATLAB function handle
+% % Assuming Hessian is a function of F only for simplicity
+% HessianFunc = matlabFunction(Hessian, 'Vars', {F}, 'File', 'hessianOfPsi');
+
+
+% QUESTION 2
+% function [Bp5p5, Bq1to4] = computeStiffnessMatrix(gridN)
+%     [X1,X2] = meshgrid(linspace(-1,1,gridN));
+%     P = [reshape(X1,1,[]); reshape(X2,1,[]) ];
+%     P0 = P; % initial state
+%     Pdot = zeros(size(P));
+
+%     % ... rest of the code ...
+
+%     % evaluation of shape function gradients at different quadrature points
+%     Bp5p5 = computeB(dphidxsfun(.5,.5)); % Quadrature point right in the middle! won't be enough
+%     Bq1to4 = [ computeB(dphidxsfun(1/3,1/3));
+%                computeB(dphidxsfun(1/3,2/3));
+%                computeB(dphidxsfun(2/3,1/3));
+%                computeB(dphidxsfun(2/3,2/3)) ];
+% end
+
+function K = computeStiffnessMatrix(B, P, N)
+    % Initialize the stiffness matrix
+    K = zeros(numel(P));
+
+    % Loop over all elements
+    for j = 1:N
+        % Loop over all quadrature points
+        for q = 1:4
+            % Compute the deformation gradient at the current quadrature point
+            F = B((j-1)*4+q,:)*P(:);
+
+            % Compute the Hessian of the energy density function
+            H = q1Func(F);
+
+            % Add the contribution of the current quadrature point to the stiffness matrix
+            K = K + B((j-1)*4+q,:)' * H * B((j-1)*4+q,:);
+        end
+    end
 end
 
 % some handy testing code... change the initial conditions!
