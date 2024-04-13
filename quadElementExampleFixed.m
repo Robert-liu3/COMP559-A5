@@ -53,12 +53,25 @@ for j = 1:N
 end
 B = B / dx; % scale by element size as X space assumed 1x1 domain up to now
 
+
 Fs = sym('Fs', [2,2],'real');
 Es = 1/2*(Fs.'*Fs-eye(2));
+J = det(Fs);
 nu = 0.4; % Poisson's raio
 E = 100; % Young's modulus
 [mu, lambda] = toLame( nu, E ); % mu (Shear modulus) and lambda (Lamé's first parameter)
-psi = 1/2 * lambda * (trace(Es))^2 + mu * trace( Es'*Es ); % STVK energy density
+
+neoHookeanEnergy2D = true;
+
+%QUESTION 4
+if neoHookeanEnergy2D
+    % Neo-Hookean energy density
+    psi = mu/2*(trace(Es) - 2) - mu*log(J) + lambda/2*(log(J))^2;
+else
+    % St. Venant-Kirchhoff energy density
+    psi = 1/2 * lambda * (trace(Es))^2 + mu * trace( Es'*Es );
+end
+
     
 G = gradient(psi,Fs(:));
 Gfun = matlabFunction(G);
@@ -83,42 +96,52 @@ for i=1:N
 end
 Minv = diag(1./mdiag);
 
-dt = 0.1;
+dt = 0.01;
 
 %QUESTION 2 IN HERE
-stiffness = zeros(numel(P),numel(P));
-areas = zeros(size(B, 1)/4, 1); % Initialize areas vector
+useSymplecticEuler = false;
 
 for t = 1:500
     F = B*P(:); % compute deformation gradients for current state
     forces = zeros( size(P) );
+    stiffness = zeros(numel(P),numel(P));
     for j=1:size(B,1)/4 % go through all the quadrature points of all elements 
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
         forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
         stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
     end
-    disp(size(Pdot(:)));
-    M = inv(Minv);
-    freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
-    Mfree = M(freeIndices, freeIndices);
-    stiffnessFree = stiffness(freeIndices, freeIndices);
-    forcesFree = forces(freeIndices);
-    a = Mfree - dt^2 * stiffnessFree;
-    b = dt * forcesFree' + dt^2 * stiffnessFree * Pdot(freeIndices)';
-    PdotFree = mldivide(a,b);
-    freeIndices = freeIndices(1:2:end);
-    Pdot(:, freeIndices) = reshape(PdotFree, size(Pdot, 1), []);
-    Pdot(gridN:gridN:gridN*gridN) = 0;
-    
+
     % add gravity
     forces(2,:) = forces(2,:) - 9.8 * ones(1,size(P,2));
 
-    % FE integration
-    Pdot(:) = Pdot(:) + dt * Minv * forces(:);
-    P(:) = P(:) + dt * Pdot(:); 
+    if useSymplecticEuler
+        % FE integration
+        Pdot(:) = Pdot(:) + dt * Minv * forces(:);
+        P(:) = P(:) + dt * Pdot(:); 
+    else
+        freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
+        freeIndicesDof = sort([2*freeIndices-1, 2*freeIndices]);
+
+        mdiagMatrix = diag(mdiag);
+        a = mdiagMatrix - dt^2 * stiffness;
+        b = dt * forces(:) + dt^2 * stiffness * Pdot(:);
+        a = a(freeIndicesDof, freeIndicesDof);
+        a = sparse(a);
+        b = b(freeIndicesDof);
+
+        newPdot = mldivide(a,b);
+        newPdotMatrix = reshape(newPdot, [2, numel(newPdot)/2]);
+
+        Pdot(:, freeIndices) = Pdot(:, freeIndices) + newPdotMatrix;
+        Pdot(:,gridN:gridN:gridN*gridN) = 0;
+        P(:) = P(:) + dt * Pdot(:); 
+    end
+
     
     % reset pinned particles to P0
     P(:,gridN:gridN:gridN*gridN) = P0(:,gridN:gridN:gridN*gridN);
+    disp('Positions after resetting pinned particles:');
+    disp(P);
     %P(:,[gridN,gridN*gridN]) = P0(:,[gridN,gridN*gridN]);
     drawElements( el, P, ph );
 end
@@ -196,26 +219,6 @@ end
 %                computeB(dphidxsfun(2/3,1/3));
 %                computeB(dphidxsfun(2/3,2/3)) ];
 % end
-
-function K = computeStiffnessMatrix(B, P, N)
-    % Initialize the stiffness matrix
-    K = zeros(numel(P));
-
-    % Loop over all elements
-    for j = 1:N
-        % Loop over all quadrature points
-        for q = 1:4
-            % Compute the deformation gradient at the current quadrature point
-            F = B((j-1)*4+q,:)*P(:);
-
-            % Compute the Hessian of the energy density function
-            H = q1Func(F);
-
-            % Add the contribution of the current quadrature point to the stiffness matrix
-            K = K + B((j-1)*4+q,:)' * H * B((j-1)*4+q,:);
-        end
-    end
-end
 
 % some handy testing code... change the initial conditions!
 %  P = P - [1.5;1.5];
