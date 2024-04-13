@@ -1,3 +1,15 @@
+%Robert Liu, 260981372
+%I, Robert Liu, would like to exercise my right to use the late penalty waiver for this assignment. 
+%Please note that all the answers to the questions are defined by comments with the question number, such as `%QUESTION 1` or `%QUESTION 5`. 
+
+%Question 5, ratio of self/total time in seconds for myGfun and myq1Func are respectively 0.698 and 0.486
+%After using num2cell and cellfun for the function defined in step 1 and Gfun, 
+%the ratio for myGfun is now 0.580 and for myq1Func is 0.347
+%And for the whole project, the self/total time in seconds before is 0.615 and after is 0.494
+%Thus showing an increase in performance after using num2cell, cellfun and sparsing the matrices
+%All changes can be found in comments with QUESTION 5 as the header
+
+
 clear
 % suppose we have a quad (or quads) in plane with bi-linear interpolation
 gridN = 10;
@@ -61,9 +73,8 @@ nu = 0.4; % Poisson's raio
 E = 100; % Young's modulus
 [mu, lambda] = toLame( nu, E ); % mu (Shear modulus) and lambda (Lamé's first parameter)
 
-neoHookeanEnergy2D = true;
-
 %QUESTION 4
+neoHookeanEnergy2D = true;
 if neoHookeanEnergy2D
     % Neo-Hookean energy density
     psi = mu/2*(trace(Es) - 2) - mu*log(J) + lambda/2*(log(J))^2;
@@ -76,12 +87,14 @@ end
 G = gradient(psi,Fs(:));
 Gfun = matlabFunction(G);
 % CAREFUL with order of the parameters to Gfun !!!!
-myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
+%COMMENTED OUT DUE TO QUESTION 5
+% myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
 
 % QUESTION 1
 q1 = hessian(psi, Fs(:));
 q1Func = matlabFunction(q1);
-myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
+%COMMENTED OUT DUE TO QUESTION 5
+% myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
 %C = hessian(psi,F(:)); % we only need this for backward Euler.  Easy to add!
 
 % do some time stepping
@@ -104,6 +117,7 @@ useSymplecticEuler = false;
 for t = 1:500
     F = B*P(:); % compute deformation gradients for current state
     forces = zeros( size(P) );
+    %QUESTION 2
     stiffness = zeros(numel(P),numel(P));
 
     %QUESTION 5 FIRST CHANGE
@@ -115,8 +129,10 @@ for t = 1:500
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
 
         % forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
+        %QUESTION 2
         % stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
 
+        %QUESTION 5 SECOND CHANGE
         forces(:) = forces(:) - B(ix,:)'*G{j};
         stiffness = stiffness - B(ix,:)' * Q{j} * B(ix,:);
     end
@@ -129,13 +145,13 @@ for t = 1:500
         Pdot(:) = Pdot(:) + dt * Minv * forces(:);
         P(:) = P(:) + dt * Pdot(:); 
     else
-        %QUESTION 2
+        %QUESTION 3
         freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
         freeIndicesDof = sort([2*freeIndices-1, 2*freeIndices]);
 
-        %mdiagMatrix = diag(mdiag);
+        % mdiagMatrix = diag(mdiag);
 
-        %QUESTION 5 SECOND CHANGE
+        %QUESTION 5 THIRD CHANGE
         mdiagMatrix = spdiags(mdiag, 0, numel(P), numel(P)); % Initialize as sparse matrix
         a = mdiagMatrix - dt^2 * stiffness;
         b = dt * forces(:) + dt^2 * stiffness * Pdot(:);
