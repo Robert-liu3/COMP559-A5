@@ -82,7 +82,7 @@ myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
 q1 = hessian(psi, Fs(:));
 q1Func = matlabFunction(q1);
 myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
-% C = hessian(psi,F(:)); % we only need this for backward Euler.  Easy to add!
+%C = hessian(psi,F(:)); % we only need this for backward Euler.  Easy to add!
 
 % do some time stepping
 
@@ -105,10 +105,20 @@ for t = 1:500
     F = B*P(:); % compute deformation gradients for current state
     forces = zeros( size(P) );
     stiffness = zeros(numel(P),numel(P));
+
+    %QUESTION 5 FIRST CHANGE
+    Fcell = num2cell(reshape(F, 4, []), 1);
+    G = cellfun(@(F) Gfun(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
+    Q = cellfun(@(F) q1Func(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
+
     for j=1:size(B,1)/4 % go through all the quadrature points of all elements 
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
-        forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
-        stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
+
+        % forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
+        % stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
+
+        forces(:) = forces(:) - B(ix,:)'*G{j};
+        stiffness = stiffness - B(ix,:)' * Q{j} * B(ix,:);
     end
 
     % add gravity
@@ -123,7 +133,10 @@ for t = 1:500
         freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
         freeIndicesDof = sort([2*freeIndices-1, 2*freeIndices]);
 
-        mdiagMatrix = diag(mdiag);
+        %mdiagMatrix = diag(mdiag);
+
+        %QUESTION 5 SECOND CHANGE
+        mdiagMatrix = spdiags(mdiag, 0, numel(P), numel(P)); % Initialize as sparse matrix
         a = mdiagMatrix - dt^2 * stiffness;
         b = dt * forces(:) + dt^2 * stiffness * Pdot(:);
         a = a(freeIndicesDof, freeIndicesDof);
