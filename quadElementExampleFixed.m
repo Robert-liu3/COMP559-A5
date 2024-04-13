@@ -98,7 +98,7 @@ Minv = diag(1./mdiag);
 
 dt = 0.01;
 
-%QUESTION 2 IN HERE
+
 useSymplecticEuler = false;
 
 for t = 1:500
@@ -119,6 +119,7 @@ for t = 1:500
         Pdot(:) = Pdot(:) + dt * Minv * forces(:);
         P(:) = P(:) + dt * Pdot(:); 
     else
+        %QUESTION 2
         freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
         freeIndicesDof = sort([2*freeIndices-1, 2*freeIndices]);
 
@@ -143,7 +144,7 @@ for t = 1:500
     disp('Positions after resetting pinned particles:');
     disp(P);
     %P(:,[gridN,gridN*gridN]) = P0(:,[gridN,gridN*gridN]);
-    drawElements( el, P, ph );
+    drawElements( el, P, ph ); %QUESTION 5 TAKES A LOT OF TIME
 end
 
 function B = computeB( g )
@@ -182,43 +183,6 @@ function [mu, lambda] = toLame(nu, E)
     lambda = E * nu / (1 + nu) / (1 - 2 * nu);
 end
 
-
-
-% QUESTION 1:
-
-% gradPsi = sym(zeros(size(Fs)));
-% for i = 1:numel(F)
-%     gradPsi(i) = diff(psi, F(i));
-% end
-
-% % Step 3: Compute the second derivatives (Hessian)
-% Hessian = sym(zeros(numel(F)));
-% for i = 1:numel(F)
-%     for j = 1:numel(F)
-%         Hessian(i,j) = diff(gradPsi(i), F(j));
-%     end
-% end
-% % Step 4: Create a MATLAB function handle
-% % Assuming Hessian is a function of F only for simplicity
-% HessianFunc = matlabFunction(Hessian, 'Vars', {F}, 'File', 'hessianOfPsi');
-
-
-% QUESTION 2
-% function [Bp5p5, Bq1to4] = computeStiffnessMatrix(gridN)
-%     [X1,X2] = meshgrid(linspace(-1,1,gridN));
-%     P = [reshape(X1,1,[]); reshape(X2,1,[]) ];
-%     P0 = P; % initial state
-%     Pdot = zeros(size(P));
-
-%     % ... rest of the code ...
-
-%     % evaluation of shape function gradients at different quadrature points
-%     Bp5p5 = computeB(dphidxsfun(.5,.5)); % Quadrature point right in the middle! won't be enough
-%     Bq1to4 = [ computeB(dphidxsfun(1/3,1/3));
-%                computeB(dphidxsfun(1/3,2/3));
-%                computeB(dphidxsfun(2/3,1/3));
-%                computeB(dphidxsfun(2/3,2/3)) ];
-% end
 
 % some handy testing code... change the initial conditions!
 %  P = P - [1.5;1.5];
