@@ -2,10 +2,10 @@
 %I, Robert Liu, would like to exercise my right to use the late penalty waiver for this assignment. 
 %Please note that all the answers to the questions are defined by comments with the question number, such as `%QUESTION 1` or `%QUESTION 5`. 
 
-%Question 5, one line that took a line time was the stiffness calculation line which took 2.4 seconds (line 135)
+%Question 5, one line that took a line time was the stiffness calculation line which took 8.31 seconds (line 135)
 %After using num2cell and cellfun for the function defined in step 1 and Gfun, 
-%the time it takes now is 1.8 seconds (line 139)
-%the time it takes to compute the forces as well improved from 0.49 seconds to 0.19 seconds (directly above the stiffness matrix calculations)
+%the time it takes now is 7.74 seconds (line 139)
+%the time it takes to compute the forces as well improved from 1.34 seconds to 0.74 seconds (directly above the stiffness matrix calculations)
 %ml divide has an improved performance of 0.005 seconds
 %Thus showing an increase in performance after using num2cell, cellfun and sparsing the matrices
 %All changes can be found in comments with QUESTION 5 as the header
@@ -91,13 +91,13 @@ G = gradient(psi,Fs(:));
 Gfun = matlabFunction(G);
 % CAREFUL with order of the parameters to Gfun !!!!
 %COMMENTED OUT DUE TO QUESTION 5
-% myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
+myGfun = @(F) Gfun(F(1),F(3),F(2),F(4));
 
 % QUESTION 1
 q1 = hessian(psi, Fs(:));
 q1Func = matlabFunction(q1);
 %COMMENTED OUT DUE TO QUESTION 5
-% myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
+myq1Func = @(F) q1Func(F(1),F(3),F(2),F(4));
 %C = hessian(psi,F(:)); % we only need this for backward Euler.  Easy to add!
 
 % do some time stepping
@@ -124,20 +124,20 @@ for t = 1:500
     stiffness = zeros(numel(P),numel(P));
 
     %QUESTION 5 FIRST CHANGE
-    Fcell = num2cell(reshape(F, 4, []), 1);
-    G = cellfun(@(F) Gfun(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
-    Q = cellfun(@(F) q1Func(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
+    % Fcell = num2cell(reshape(F, 4, []), 1);
+    % G = cellfun(@(F) Gfun(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
+    % Q = cellfun(@(F) q1Func(F(1),F(3),F(2),F(4)), Fcell, 'UniformOutput', false);
 
     for j=1:size(B,1)/4 % go through all the quadrature points of all elements 
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
 
         %QUESTION 2
-        % forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
-        % stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
+        forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
+        stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
 
         %QUESTION 5 SECOND CHANGE
-        forces(:) = forces(:) - B(ix,:)'*G{j};
-        stiffness = stiffness - B(ix,:)' * Q{j} * B(ix,:);
+        % forces(:) = forces(:) - B(ix,:)'*G{j};
+        % stiffness = stiffness - B(ix,:)' * Q{j} * B(ix,:);
     end
 
     % add gravity
@@ -152,10 +152,10 @@ for t = 1:500
         freeIndices = setdiff(1:size(P, 2), gridN:gridN:gridN*gridN);
         freeIndicesDof = sort([2*freeIndices-1, 2*freeIndices]);
 
-        % mdiagMatrix = diag(mdiag);
+        mdiagMatrix = diag(mdiag);
 
         %QUESTION 5 THIRD CHANGE
-        mdiagMatrix = spdiags(mdiag, 0, numel(P), numel(P)); % Initialize as sparse matrix
+        % mdiagMatrix = spdiags(mdiag, 0, numel(P), numel(P)); % Initialize as sparse matrix
         a = mdiagMatrix - dt^2 * stiffness;
         b = dt * forces(:) + dt^2 * stiffness * Pdot(:);
         a = a(freeIndicesDof, freeIndicesDof);
