@@ -71,13 +71,15 @@ Es = 1/2*(Fs.'*Fs-eye(2));
 J = det(Fs);
 nu = 0.4; % Poisson's raio
 E = 100; % Young's modulus
+C = Fs'*Fs; % right Cauchy-Green tensor
 [mu, lambda] = toLame( nu, E ); % mu (Shear modulus) and lambda (Lamé's first parameter)
 
-%QUESTION 4
 neoHookeanEnergy2D = true;
+
+%QUESTION 4
 if neoHookeanEnergy2D
     % Neo-Hookean energy density
-    psi = mu/2*(trace(Es) - 2) - mu*log(J) + lambda/2*(log(J))^2;
+    psi = mu/2*(trace(C) - 2) - mu*log(J) + lambda/2*(log(J))^2;
 else
     % St. Venant-Kirchhoff energy density
     psi = 1/2 * lambda * (trace(Es))^2 + mu * trace( Es'*Es );
