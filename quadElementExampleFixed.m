@@ -2,10 +2,11 @@
 %I, Robert Liu, would like to exercise my right to use the late penalty waiver for this assignment. 
 %Please note that all the answers to the questions are defined by comments with the question number, such as `%QUESTION 1` or `%QUESTION 5`. 
 
-%Question 5, ratio of self/total time in seconds for myGfun and myq1Func are respectively 0.698 and 0.486
+%Question 5, one line that took a line time was the stiffness calculation line which took 2.4 seconds (line 135)
 %After using num2cell and cellfun for the function defined in step 1 and Gfun, 
-%the ratio for myGfun is now 0.580 and for myq1Func is 0.347
-%And for the whole project, the self/total time in seconds before is 0.615 and after is 0.494
+%the time it takes now is 1.8 seconds (line 139)
+%the time it takes to compute the forces as well improved from 0.49 seconds to 0.19 seconds (directly above the stiffness matrix calculations)
+%ml divide has an improved performance of 0.005 seconds
 %Thus showing an increase in performance after using num2cell, cellfun and sparsing the matrices
 %All changes can be found in comments with QUESTION 5 as the header
 
@@ -130,8 +131,8 @@ for t = 1:500
     for j=1:size(B,1)/4 % go through all the quadrature points of all elements 
         ix = j*4-3:j*4; % indicies for accessing the jth deformation gradient
 
-        % forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
         %QUESTION 2
+        % forces(:) = forces(:) - B(ix,:)'*myGfun(F(ix));
         % stiffness = stiffness - B(ix,:)' * myq1Func(F(ix)) * B(ix,:);
 
         %QUESTION 5 SECOND CHANGE
